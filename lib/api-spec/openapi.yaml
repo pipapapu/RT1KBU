@@ -3,20 +3,32 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: RT Management System API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: warga
+    description: Resident data management
+  - name: kk
+    description: Family card management
+  - name: iuran
+    description: Dues and payment management
+  - name: surat
+    description: Letter request management
+  - name: pengumuman
+    description: Announcement management
+  - name: dashboard
+    description: Dashboard summary
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +36,577 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  # ─── Kartu Keluarga ───────────────────────────────────────────────────────
+  /kk:
+    get:
+      operationId: listKK
+      tags: [kk]
+      summary: List all family cards
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of family cards
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KartuKeluarga"
+    post:
+      operationId: createKK
+      tags: [kk]
+      summary: Create a new family card
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KartuKeluargaInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KartuKeluarga"
+
+  /kk/{id}:
+    get:
+      operationId: getKK
+      tags: [kk]
+      summary: Get a family card
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Family card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KartuKeluarga"
+    patch:
+      operationId: updateKK
+      tags: [kk]
+      summary: Update a family card
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KartuKeluargaUpdate"
+      responses:
+        "200":
+          description: Updated family card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KartuKeluarga"
+    delete:
+      operationId: deleteKK
+      tags: [kk]
+      summary: Delete a family card
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+
+  # ─── Warga ────────────────────────────────────────────────────────────────
+  /warga:
+    get:
+      operationId: listWarga
+      tags: [warga]
+      summary: List all residents
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: kkId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of residents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Warga"
+    post:
+      operationId: createWarga
+      tags: [warga]
+      summary: Create a new resident
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WargaInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warga"
+
+  /warga/{id}:
+    get:
+      operationId: getWarga
+      tags: [warga]
+      summary: Get a resident
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Resident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warga"
+    patch:
+      operationId: updateWarga
+      tags: [warga]
+      summary: Update a resident
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WargaUpdate"
+      responses:
+        "200":
+          description: Updated resident
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warga"
+    delete:
+      operationId: deleteWarga
+      tags: [warga]
+      summary: Delete a resident
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+
+  /warga/link-user:
+    post:
+      operationId: linkWargaUser
+      tags: [warga]
+      summary: Link a Clerk user ID to a resident record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkWargaUser"
+      responses:
+        "200":
+          description: Linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Warga"
+
+  /warga/me:
+    get:
+      operationId: getMyWargaProfile
+      tags: [warga]
+      summary: Get current user's resident profile
+      responses:
+        "200":
+          description: My resident profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WargaPublic"
+        "404":
+          description: Not found
+
+  # ─── Iuran / Dues ─────────────────────────────────────────────────────────
+  /iuran:
+    get:
+      operationId: listIuran
+      tags: [iuran]
+      summary: List dues records
+      parameters:
+        - in: query
+          name: wargaId
+          schema:
+            type: integer
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [belum_bayar, menunggu_verifikasi, lunas]
+        - in: query
+          name: tahun
+          schema:
+            type: integer
+        - in: query
+          name: bulan
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of dues records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Iuran"
+    post:
+      operationId: createIuran
+      tags: [iuran]
+      summary: Create a dues record (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IuranInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Iuran"
+
+  /iuran/generate-monthly:
+    post:
+      operationId: generateMonthlyIuran
+      tags: [iuran]
+      summary: Generate monthly dues for all active residents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenerateMonthlyIuran"
+      responses:
+        "200":
+          description: Generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenerateMonthlyResult"
+
+  /iuran/my:
+    get:
+      operationId: listMyIuran
+      tags: [iuran]
+      summary: List current user's dues
+      responses:
+        "200":
+          description: My dues
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Iuran"
+
+  /iuran/{id}:
+    get:
+      operationId: getIuran
+      tags: [iuran]
+      summary: Get a dues record
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Dues record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Iuran"
+    patch:
+      operationId: updateIuranStatus
+      tags: [iuran]
+      summary: Update dues status
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IuranStatusUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Iuran"
+
+  /iuran/{id}/bukti-bayar:
+    post:
+      operationId: uploadBuktiBayar
+      tags: [iuran]
+      summary: Upload payment proof URL
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BuktiBayarInput"
+      responses:
+        "200":
+          description: Uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Iuran"
+
+  # ─── Surat / Letter Requests ──────────────────────────────────────────────
+  /surat:
+    get:
+      operationId: listSurat
+      tags: [surat]
+      summary: List letter requests
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [diajukan, diproses, selesai]
+      responses:
+        "200":
+          description: List of letter requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Surat"
+    post:
+      operationId: createSurat
+      tags: [surat]
+      summary: Submit a letter request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuratInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Surat"
+
+  /surat/my:
+    get:
+      operationId: listMySurat
+      tags: [surat]
+      summary: List current user's letter requests
+      responses:
+        "200":
+          description: My letter requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Surat"
+
+  /surat/{id}:
+    get:
+      operationId: getSurat
+      tags: [surat]
+      summary: Get a letter request
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Letter request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Surat"
+    patch:
+      operationId: updateSuratStatus
+      tags: [surat]
+      summary: Update letter request status (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SuratStatusUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Surat"
+
+  # ─── Pengumuman / Announcements ───────────────────────────────────────────
+  /pengumuman:
+    get:
+      operationId: listPengumuman
+      tags: [pengumuman]
+      summary: List announcements
+      responses:
+        "200":
+          description: List of announcements
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pengumuman"
+    post:
+      operationId: createPengumuman
+      tags: [pengumuman]
+      summary: Create an announcement (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PengumumanInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pengumuman"
+
+  /pengumuman/{id}:
+    patch:
+      operationId: updatePengumuman
+      tags: [pengumuman]
+      summary: Update an announcement
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PengumumanUpdate"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pengumuman"
+    delete:
+      operationId: deletePengumuman
+      tags: [pengumuman]
+      summary: Delete an announcement (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+
+  # ─── Dashboard ────────────────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get admin dashboard summary stats
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/pending-actions:
+    get:
+      operationId: getPendingActions
+      tags: [dashboard]
+      summary: Get items that need admin attention
+      responses:
+        "200":
+          description: Pending actions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PendingActions"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +617,337 @@ components:
       required:
         - status
 
+    # ─── Kartu Keluarga ──────────────────────────────────────────────────────
+    KartuKeluarga:
+      type: object
+      required: [id, nomorKK, nomorRumah, namaKepalaKeluarga, createdAt]
+      properties:
+        id:
+          type: integer
+        nomorKK:
+          type: string
+        nomorRumah:
+          type: string
+        namaKepalaKeluarga:
+          type: string
+        createdAt:
+          type: string
+        wargaCount:
+          type: ["integer", "null"]
+
+    KartuKeluargaInput:
+      type: object
+      required: [nomorKK, nomorRumah, namaKepalaKeluarga]
+      properties:
+        nomorKK:
+          type: string
+        nomorRumah:
+          type: string
+        namaKepalaKeluarga:
+          type: string
+
+    KartuKeluargaUpdate:
+      type: object
+      properties:
+        nomorKK:
+          type: string
+        nomorRumah:
+          type: string
+        namaKepalaKeluarga:
+          type: string
+
+    # ─── Warga ───────────────────────────────────────────────────────────────
+    Warga:
+      type: object
+      required: [id, kkId, namaLengkap, nik, nomorRumah, createdAt]
+      properties:
+        id:
+          type: integer
+        kkId:
+          type: integer
+        namaLengkap:
+          type: string
+        nik:
+          type: string
+        tempatLahir:
+          type: ["string", "null"]
+        tanggalLahir:
+          type: ["string", "null"]
+        namaOrangTua:
+          type: ["string", "null"]
+        nomorRumah:
+          type: string
+        nomorTelepon:
+          type: ["string", "null"]
+        clerkUserId:
+          type: ["string", "null"]
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+        kkNomor:
+          type: ["string", "null"]
+
+    WargaPublic:
+      type: object
+      required: [id, namaLengkap, nomorRumah]
+      properties:
+        id:
+          type: integer
+        namaLengkap:
+          type: string
+        nomorRumah:
+          type: string
+        clerkUserId:
+          type: ["string", "null"]
+
+    WargaInput:
+      type: object
+      required: [kkId, namaLengkap, nik, nomorRumah]
+      properties:
+        kkId:
+          type: integer
+        namaLengkap:
+          type: string
+        nik:
+          type: string
+        tempatLahir:
+          type: string
+        tanggalLahir:
+          type: string
+        namaOrangTua:
+          type: string
+        nomorRumah:
+          type: string
+        nomorTelepon:
+          type: string
+
+    WargaUpdate:
+      type: object
+      properties:
+        kkId:
+          type: integer
+        namaLengkap:
+          type: string
+        nik:
+          type: string
+        tempatLahir:
+          type: string
+        tanggalLahir:
+          type: string
+        namaOrangTua:
+          type: string
+        nomorRumah:
+          type: string
+        nomorTelepon:
+          type: string
+        isActive:
+          type: boolean
+
+    LinkWargaUser:
+      type: object
+      required: [wargaId, clerkUserId]
+      properties:
+        wargaId:
+          type: integer
+        clerkUserId:
+          type: string
+
+    # ─── Iuran ───────────────────────────────────────────────────────────────
+    Iuran:
+      type: object
+      required: [id, wargaId, bulan, tahun, jumlah, status, createdAt]
+      properties:
+        id:
+          type: integer
+        wargaId:
+          type: integer
+        bulan:
+          type: integer
+        tahun:
+          type: integer
+        jumlah:
+          type: integer
+        status:
+          type: string
+          enum: [belum_bayar, menunggu_verifikasi, lunas]
+        buktiBayarUrl:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        verifiedAt:
+          type: ["string", "null"]
+        verifiedBy:
+          type: ["string", "null"]
+        namaWarga:
+          type: ["string", "null"]
+        nomorRumah:
+          type: ["string", "null"]
+
+    IuranInput:
+      type: object
+      required: [wargaId, bulan, tahun, jumlah]
+      properties:
+        wargaId:
+          type: integer
+        bulan:
+          type: integer
+        tahun:
+          type: integer
+        jumlah:
+          type: integer
+
+    IuranStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [belum_bayar, menunggu_verifikasi, lunas]
+
+    BuktiBayarInput:
+      type: object
+      required: [buktiBayarUrl]
+      properties:
+        buktiBayarUrl:
+          type: string
+
+    GenerateMonthlyIuran:
+      type: object
+      required: [bulan, tahun, jumlah]
+      properties:
+        bulan:
+          type: integer
+        tahun:
+          type: integer
+        jumlah:
+          type: integer
+
+    GenerateMonthlyResult:
+      type: object
+      required: [created, skipped]
+      properties:
+        created:
+          type: integer
+        skipped:
+          type: integer
+
+    # ─── Surat ───────────────────────────────────────────────────────────────
+    Surat:
+      type: object
+      required: [id, namaLengkap, jenisSurat, alasan, status, createdAt]
+      properties:
+        id:
+          type: integer
+        clerkUserId:
+          type: ["string", "null"]
+        namaLengkap:
+          type: string
+        nomorRumah:
+          type: ["string", "null"]
+        jenisSurat:
+          type: string
+        alasan:
+          type: string
+        status:
+          type: string
+          enum: [diajukan, diproses, selesai]
+        catatanAdmin:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    SuratInput:
+      type: object
+      required: [namaLengkap, jenisSurat, alasan]
+      properties:
+        namaLengkap:
+          type: string
+        nomorRumah:
+          type: string
+        jenisSurat:
+          type: string
+        alasan:
+          type: string
+
+    SuratStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [diajukan, diproses, selesai]
+        catatanAdmin:
+          type: string
+
+    # ─── Pengumuman ──────────────────────────────────────────────────────────
+    Pengumuman:
+      type: object
+      required: [id, judul, konten, createdAt]
+      properties:
+        id:
+          type: integer
+        judul:
+          type: string
+        konten:
+          type: string
+        kategori:
+          type: ["string", "null"]
+        authorId:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        updatedAt:
+          type: string
+
+    PengumumanInput:
+      type: object
+      required: [judul, konten]
+      properties:
+        judul:
+          type: string
+        konten:
+          type: string
+        kategori:
+          type: string
+
+    PengumumanUpdate:
+      type: object
+      properties:
+        judul:
+          type: string
+        konten:
+          type: string
+        kategori:
+          type: string
+
+    # ─── Dashboard ────────────────────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      required: [totalWarga, totalKK, iuranLunasBulanIni, iuranBelumBayar, iuranMenungguVerifikasi, suratBaru, totalPemasukan]
+      properties:
+        totalWarga:
+          type: integer
+        totalKK:
+          type: integer
+        iuranLunasBulanIni:
+          type: integer
+        iuranBelumBayar:
+          type: integer
+        iuranMenungguVerifikasi:
+          type: integer
+        suratBaru:
+          type: integer
+        totalPemasukan:
+          type: integer
+
+    PendingActions:
+      type: object
+      required: [buktiPembayaran, permohonanSurat]
+      properties:
+        buktiPembayaran:
+          type: integer
+        permohonanSurat:
+          type: integer
