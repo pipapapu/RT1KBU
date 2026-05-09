@@ -6,17 +6,46 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { formatTanggal } from "@/lib/format";
-import { Plus, FileText, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { Plus, FileText, Clock, CheckCircle2, Loader2, MapPin } from "lucide-react";
 
-const STATUS_MAP = {
-  diajukan: { label: "Diajukan", variant: "secondary" as const, icon: <Clock className="w-3 h-3" /> },
-  diproses: { label: "Diproses", variant: "default" as const, icon: <Loader2 className="w-3 h-3" /> },
-  selesai: { label: "Selesai / Bisa Diambil", variant: "outline" as const, icon: <CheckCircle2 className="w-3 h-3" /> },
+type SuratStatus = "diajukan" | "diproses" | "selesai";
+
+const STATUS_CONFIG: Record<SuratStatus, {
+  label: string;
+  desc: string;
+  icon: React.ReactNode;
+  cardClass: string;
+  labelClass: string;
+  step: number;
+}> = {
+  diajukan: {
+    label: "Menunggu Diproses",
+    desc: "Permohonan Anda telah diterima dan menunggu ditindaklanjuti oleh Ketua RT.",
+    icon: <Clock className="w-5 h-5 text-amber-500" />,
+    cardClass: "border-amber-200 bg-amber-50/50",
+    labelClass: "bg-amber-100 text-amber-800 border border-amber-200",
+    step: 1,
+  },
+  diproses: {
+    label: "Sedang Diproses",
+    desc: "Surat Anda sedang dibuat oleh Ketua RT. Harap menunggu konfirmasi selanjutnya.",
+    icon: <Loader2 className="w-5 h-5 text-blue-500 animate-spin" />,
+    cardClass: "border-blue-200 bg-blue-50/50",
+    labelClass: "bg-blue-100 text-blue-800 border border-blue-200",
+    step: 2,
+  },
+  selesai: {
+    label: "Siap Diambil",
+    desc: "Surat Anda sudah siap! Silakan ambil langsung ke rumah Ketua RT.",
+    icon: <CheckCircle2 className="w-5 h-5 text-green-600" />,
+    cardClass: "border-green-300 bg-green-50 ring-1 ring-green-200",
+    labelClass: "bg-green-100 text-green-800 border border-green-300",
+    step: 3,
+  },
 };
 
 const JENIS_SURAT = [
@@ -37,7 +66,15 @@ export default function WargaSurat() {
 
   const { data: suratList, isLoading } = useListMySurat();
   const { data: profile } = useGetMyWargaProfile();
-  const create = useCreateSurat({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListMySuratQueryKey() }); setShowDialog(false); toast({ title: "Permohonan surat berhasil diajukan!" }); } } });
+  const create = useCreateSurat({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListMySuratQueryKey() });
+        setShowDialog(false);
+        toast({ title: "Permohonan surat berhasil diajukan!" });
+      },
+    },
+  });
 
   function openNew() {
     setForm({ namaLengkap: profile?.namaLengkap ?? "", nomorRumah: profile?.nomorRumah ?? "", jenisSurat: "", alasan: "" });
@@ -45,9 +82,15 @@ export default function WargaSurat() {
   }
 
   function submit() {
-    if (!form.namaLengkap || !form.jenisSurat || !form.alasan) { toast({ title: "Lengkapi semua data yang diperlukan", variant: "destructive" }); return; }
+    if (!form.namaLengkap || !form.jenisSurat || !form.alasan) {
+      toast({ title: "Lengkapi semua data yang diperlukan", variant: "destructive" });
+      return;
+    }
     create.mutate({ data: form });
   }
+
+  const readySurat = suratList?.filter(s => s.status === "selesai") ?? [];
+  const activeSurat = suratList?.filter(s => s.status !== "selesai") ?? [];
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -61,50 +104,47 @@ export default function WargaSurat() {
         </Button>
       </div>
 
-      <Card className="bg-muted/30">
-        <CardContent className="py-3 px-4">
-          <p className="text-sm text-muted-foreground">
-            Permohonan surat akan diproses oleh Ketua RT. Surat dapat diambil setelah status berubah menjadi <strong>Selesai</strong>. Hubungi Pak RT untuk konfirmasi.
-          </p>
-        </CardContent>
-      </Card>
+      {/* Ready to pick up — shown prominently at the top */}
+      {readySurat.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-green-700 uppercase tracking-wide flex items-center gap-2">
+            <MapPin className="w-4 h-4" />Siap Diambil
+          </h2>
+          {readySurat.map(surat => (
+            <SuratCard key={surat.id} surat={surat} />
+          ))}
+        </div>
+      )}
 
-      {isLoading ? <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div> : (
-        <div className="grid gap-3">
+      {/* Active requests */}
+      {isLoading ? (
+        <div className="space-y-3">{[...Array(2)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}</div>
+      ) : (
+        <>
+          {activeSurat.length > 0 && (
+            <div className="space-y-3">
+              {readySurat.length > 0 && <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Sedang Berjalan</h2>}
+              {activeSurat.map(surat => <SuratCard key={surat.id} surat={surat} />)}
+            </div>
+          )}
+
           {suratList?.length === 0 && (
-            <div className="text-center py-12 space-y-3">
-              <FileText className="w-10 h-10 text-muted-foreground mx-auto" />
+            <div className="text-center py-14 space-y-3">
+              <FileText className="w-12 h-12 text-muted-foreground mx-auto" />
               <p className="text-muted-foreground">Belum ada permohonan surat.</p>
               <Button variant="outline" onClick={openNew}>Ajukan Sekarang</Button>
             </div>
           )}
-          {suratList?.map(surat => {
-            const s = STATUS_MAP[surat.status as keyof typeof STATUS_MAP] ?? STATUS_MAP.diajukan;
-            return (
-              <Card key={surat.id} data-testid={`card-surat-${surat.id}`}>
-                <CardContent className="py-4 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-semibold">{surat.jenisSurat}</span>
-                    <Badge variant={s.variant} className="flex items-center gap-1 text-xs whitespace-nowrap">{s.icon}{s.label}</Badge>
-                  </div>
-                  <div className="text-sm text-muted-foreground">{formatTanggal(surat.createdAt)}</div>
-                  <div className="text-sm text-foreground/70 italic line-clamp-2">"{surat.alasan}"</div>
-                  {surat.catatanAdmin && (
-                    <div className="text-sm text-primary bg-primary/5 rounded p-2">
-                      Catatan Admin: {surat.catatanAdmin}
-                    </div>
-                  )}
-                  {surat.status === "selesai" && (
-                    <div className="text-sm font-medium text-green-700 bg-green-50 rounded p-2">
-                      Surat Anda sudah siap! Silakan ambil di rumah Ketua RT.
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
+        </>
       )}
+
+      <Card className="bg-muted/30">
+        <CardContent className="py-3 px-4">
+          <p className="text-sm text-muted-foreground">
+            Surat dapat diambil langsung ke rumah Ketua RT setelah status berubah menjadi <strong className="text-green-700">Siap Diambil</strong>.
+          </p>
+        </CardContent>
+      </Card>
 
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="max-w-lg">
@@ -127,6 +167,72 @@ export default function WargaSurat() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function SuratCard({ surat }: { surat: { id: number; jenisSurat: string; alasan: string; status: string; createdAt: string; catatanAdmin?: string | null } }) {
+  const status = (surat.status as SuratStatus) in STATUS_CONFIG ? surat.status as SuratStatus : "diajukan";
+  const cfg = STATUS_CONFIG[status];
+
+  return (
+    <Card data-testid={`card-surat-${surat.id}`} className={`transition-all ${cfg.cardClass}`}>
+      <CardContent className="py-4 space-y-3">
+        {/* Header row */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-0.5">
+            <div className="font-semibold text-foreground">{surat.jenisSurat}</div>
+            <div className="text-xs text-muted-foreground">{formatTanggal(surat.createdAt)}</div>
+          </div>
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap flex-shrink-0 ${cfg.labelClass}`}>
+            {cfg.icon}
+            {cfg.label}
+          </span>
+        </div>
+
+        {/* Progress steps */}
+        <ProgressSteps step={cfg.step} />
+
+        {/* Status description */}
+        <p className="text-sm text-muted-foreground">{cfg.desc}</p>
+
+        {/* Admin note if any */}
+        {surat.catatanAdmin && (
+          <div className="text-sm rounded-md p-2.5 bg-background/80 border border-border">
+            <span className="font-medium text-foreground">Catatan RT:</span>{" "}
+            <span className="text-foreground/80">{surat.catatanAdmin}</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProgressSteps({ step }: { step: number }) {
+  const steps = [
+    { label: "Diajukan" },
+    { label: "Diproses" },
+    { label: "Siap Diambil" },
+  ];
+  return (
+    <div className="flex items-center gap-0">
+      {steps.map((s, i) => {
+        const done = i + 1 < step;
+        const current = i + 1 === step;
+        return (
+          <div key={s.label} className="flex items-center flex-1 last:flex-none">
+            <div className="flex flex-col items-center gap-1">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 ${done ? "bg-primary text-primary-foreground" : current ? "bg-primary text-primary-foreground ring-2 ring-primary/30" : "bg-muted text-muted-foreground"}`}>
+                {done ? "✓" : i + 1}
+              </div>
+              <span className={`text-[10px] font-medium whitespace-nowrap ${current ? "text-foreground" : "text-muted-foreground"}`}>{s.label}</span>
+            </div>
+            {i < steps.length - 1 && (
+              <div className={`h-0.5 flex-1 mx-1 mb-4 ${done ? "bg-primary" : "bg-muted"}`} />
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
