@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,17 +24,61 @@ const PAYMENT_INFO = [
   { method: "SeaBank", number: "901501258859", name: "Diana Rosliana" },
 ];
 
+type Iuran = { id: number; bulan: number; tahun: number; jumlah: number; status: string; buktiBayarUrl?: string | null };
+
 export default function WargaIuran() {
-  const [showUploadDialog, setShowUploadDialog] = useState<any | null>(null);
-  const [buktiUrl, setBuktiUrl] = useState("");
+  const [pendingIuran, setPendingIuran] = useState<Iuran | null>(null);
   const [showPaymentInfo, setShowPaymentInfo] = useState(false);
+  const [uploadIuran, setUploadIuran] = useState<Iuran | null>(null);
+  const [buktiUrl, setBuktiUrl] = useState("");
   const qc = useQueryClient();
   const { toast } = useToast();
 
   const { data: iuranList, isLoading } = useListMyIuran();
-  const uploadBukti = useUploadBuktiBayar({ mutation: { onSuccess: () => { qc.invalidateQueries({ queryKey: getListMyIuranQueryKey() }); setShowUploadDialog(null); setBuktiUrl(""); toast({ title: "Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin." }); } } });
+  const uploadBukti = useUploadBuktiBayar({
+    mutation: {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListMyIuranQueryKey() });
+        setUploadIuran(null);
+        setBuktiUrl("");
+        toast({ title: "Bukti pembayaran berhasil dikirim. Menunggu verifikasi admin." });
+      },
+      onError: () => {
+        toast({ title: "Gagal mengirim bukti. Coba lagi.", variant: "destructive" });
+      },
+    },
+  });
 
   const belumBayarCount = iuranList?.filter(i => i.status === "belum_bayar").length ?? 0;
+
+  function openPaymentInfo(iuran: Iuran) {
+    setPendingIuran(iuran);
+    setBuktiUrl("");
+    setShowPaymentInfo(true);
+  }
+
+  function openUploadDirect(iuran: Iuran) {
+    setUploadIuran(iuran);
+    setBuktiUrl(iuran.buktiBayarUrl ?? "");
+  }
+
+  function handleLanjutKirimBukti() {
+    setShowPaymentInfo(false);
+    if (pendingIuran) {
+      setUploadIuran(pendingIuran);
+      setBuktiUrl("");
+      setPendingIuran(null);
+    }
+  }
+
+  function handleKirimBukti() {
+    if (!buktiUrl.trim()) {
+      toast({ title: "Masukkan link bukti bayar", variant: "destructive" });
+      return;
+    }
+    if (!uploadIuran) return;
+    uploadBukti.mutate({ id: uploadIuran.id, data: { buktiBayarUrl: buktiUrl } });
+  }
 
   return (
     <div className="p-6 md:p-8 space-y-6">
@@ -43,7 +87,7 @@ export default function WargaIuran() {
           <h1 className="text-2xl font-bold text-foreground">Iuran Bulanan</h1>
           <p className="text-sm text-muted-foreground">Status tagihan dan pembayaran iuran Anda</p>
         </div>
-        <Button variant="outline" data-testid="button-info-pembayaran" onClick={() => setShowPaymentInfo(true)}>
+        <Button variant="outline" data-testid="button-info-pembayaran" onClick={() => { setPendingIuran(null); setShowPaymentInfo(true); }}>
           <Info className="w-4 h-4 mr-2" />Info Pembayaran
         </Button>
       </div>
@@ -52,12 +96,18 @@ export default function WargaIuran() {
         <Card className="bg-destructive/5 border-destructive/20">
           <CardContent className="py-3 px-4 flex items-center gap-2">
             <AlertCircle className="w-4 h-4 text-destructive" />
-            <span className="text-sm text-destructive font-medium">Anda memiliki {belumBayarCount} tagihan yang belum dibayar</span>
+            <span className="text-sm text-destructive font-medium">
+              Anda memiliki {belumBayarCount} tagihan yang belum dibayar
+            </span>
           </CardContent>
         </Card>
       )}
 
-      {isLoading ? <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div> : (
+      {isLoading ? (
+        <div className="space-y-3">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+        </div>
+      ) : (
         <div className="grid gap-3">
           {iuranList?.length === 0 && (
             <Card>
@@ -74,21 +124,34 @@ export default function WargaIuran() {
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       <span className="font-semibold">{formatBulanTahun(iuran.bulan, iuran.tahun)}</span>
-                      <Badge variant={s.variant} className="flex items-center gap-1 text-xs">{s.icon}{s.label}</Badge>
+                      <Badge variant={s.variant} className="flex items-center gap-1 text-xs">
+                        {s.icon}{s.label}
+                      </Badge>
                     </div>
                     <div className="text-lg font-bold text-foreground">{formatRupiah(iuran.jumlah)}</div>
                     {iuran.buktiBayarUrl && iuran.status === "menunggu_verifikasi" && (
-                      <div className="text-xs text-muted-foreground">Bukti sudah dikirim, menunggu konfirmasi admin</div>
+                      <div className="text-xs text-muted-foreground">
+                        Bukti sudah dikirim, menunggu konfirmasi admin
+                      </div>
                     )}
                   </div>
                   <div className="flex gap-2">
                     {iuran.status === "belum_bayar" && (
-                      <Button size="sm" data-testid={`button-bayar-${iuran.id}`} onClick={() => { setShowUploadDialog(iuran); setBuktiUrl(""); setShowPaymentInfo(true); }}>
+                      <Button
+                        size="sm"
+                        data-testid={`button-bayar-${iuran.id}`}
+                        onClick={() => openPaymentInfo(iuran as Iuran)}
+                      >
                         <Upload className="w-4 h-4 mr-2" />Kirim Bukti Bayar
                       </Button>
                     )}
                     {iuran.status === "menunggu_verifikasi" && (
-                      <Button size="sm" variant="outline" data-testid={`button-update-bukti-${iuran.id}`} onClick={() => { setShowUploadDialog(iuran); setBuktiUrl(iuran.buktiBayarUrl ?? ""); }}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        data-testid={`button-update-bukti-${iuran.id}`}
+                        onClick={() => openUploadDirect(iuran as Iuran)}
+                      >
                         Perbarui Bukti
                       </Button>
                     )}
@@ -100,11 +163,13 @@ export default function WargaIuran() {
         </div>
       )}
 
-      {/* Payment Info Dialog */}
-      <Dialog open={showPaymentInfo} onOpenChange={(o) => { setShowPaymentInfo(o); if (showUploadDialog && !o) { } }}>
+      {/* Dialog Informasi Pembayaran — hanya satu dialog terbuka pada satu waktu */}
+      <Dialog open={showPaymentInfo} onOpenChange={setShowPaymentInfo}>
         <DialogContent>
           <DialogHeader><DialogTitle>Informasi Pembayaran</DialogTitle></DialogHeader>
-          <p className="text-sm text-muted-foreground">Silakan transfer ke salah satu rekening berikut, lalu kirim bukti pembayaran.</p>
+          <p className="text-sm text-muted-foreground">
+            Silakan transfer ke salah satu rekening berikut, lalu kirim bukti pembayaran.
+          </p>
           <div className="space-y-3">
             {PAYMENT_INFO.map(p => (
               <Card key={p.method} className="bg-muted/50">
@@ -117,32 +182,65 @@ export default function WargaIuran() {
             ))}
           </div>
           <DialogFooter>
-            <Button onClick={() => { setShowPaymentInfo(false); if (!showUploadDialog && iuranList?.find(i => i.status === "belum_bayar")) setShowUploadDialog(iuranList.find(i => i.status === "belum_bayar")); }}>Lanjut Kirim Bukti</Button>
+            <Button variant="outline" onClick={() => { setShowPaymentInfo(false); setPendingIuran(null); }}>
+              Tutup
+            </Button>
+            {pendingIuran && (
+              <Button onClick={handleLanjutKirimBukti}>
+                Lanjut Kirim Bukti
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Upload Bukti Dialog */}
-      <Dialog open={!!showUploadDialog} onOpenChange={() => setShowUploadDialog(null)}>
+      {/* Dialog Upload Bukti — terbuka setelah payment info ditutup */}
+      <Dialog open={!!uploadIuran} onOpenChange={(open) => { if (!open) { setUploadIuran(null); setBuktiUrl(""); } }}>
         <DialogContent>
           <DialogHeader><DialogTitle>Kirim Bukti Pembayaran</DialogTitle></DialogHeader>
-          {showUploadDialog && (
+          {uploadIuran && (
             <div className="space-y-4">
               <div className="p-3 bg-muted rounded-md">
                 <div className="text-sm text-muted-foreground">Tagihan:</div>
-                <div className="font-semibold">{formatBulanTahun(showUploadDialog.bulan, showUploadDialog.tahun)} — {formatRupiah(showUploadDialog.jumlah)}</div>
+                <div className="font-semibold">
+                  {formatBulanTahun(uploadIuran.bulan, uploadIuran.tahun)} — {formatRupiah(uploadIuran.jumlah)}
+                </div>
               </div>
               <div>
-                <Label>URL Bukti Pembayaran *</Label>
-                <Input data-testid="input-bukti-url" className="mt-1" value={buktiUrl} onChange={e => setBuktiUrl(e.target.value)} placeholder="https://drive.google.com/... atau link foto lainnya" />
-                <p className="text-xs text-muted-foreground mt-1">Upload foto ke Google Drive, WhatsApp, atau layanan lain lalu tempel link-nya di sini.</p>
+                <Label htmlFor="bukti-url">URL Bukti Pembayaran *</Label>
+                <Input
+                  id="bukti-url"
+                  data-testid="input-bukti-url"
+                  className="mt-1"
+                  value={buktiUrl}
+                  onChange={e => setBuktiUrl(e.target.value)}
+                  placeholder="https://drive.google.com/... atau link foto lainnya"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Upload foto ke Google Drive, WhatsApp, atau layanan lain lalu tempel link-nya di sini.
+                </p>
               </div>
-              {buktiUrl && <img src={buktiUrl} alt="Preview" className="w-full rounded-md border" onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />}
+              {buktiUrl && (
+                <img
+                  src={buktiUrl}
+                  alt="Preview bukti bayar"
+                  className="w-full rounded-md border"
+                  onError={e => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+              )}
             </div>
           )}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUploadDialog(null)}>Batal</Button>
-            <Button data-testid="button-kirim-bukti" onClick={() => { if (!buktiUrl) { toast({ title: "Masukkan link bukti bayar", variant: "destructive" }); return; } uploadBukti.mutate({ id: showUploadDialog.id, data: { buktiBayarUrl: buktiUrl } }); }} disabled={uploadBukti.isPending}>Kirim</Button>
+            <Button variant="outline" onClick={() => { setUploadIuran(null); setBuktiUrl(""); }}>
+              Batal
+            </Button>
+            <Button
+              data-testid="button-kirim-bukti"
+              onClick={handleKirimBukti}
+              disabled={uploadBukti.isPending}
+            >
+              {uploadBukti.isPending ? "Mengirim..." : "Kirim"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
