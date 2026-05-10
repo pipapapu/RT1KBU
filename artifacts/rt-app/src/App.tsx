@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser } from '@clerk/react';
+import { ClerkProvider, SignIn, SignUp, Show, useClerk, useUser, UserButton } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { Switch, Route, useLocation, Router as WouterRouter, Redirect, Link } from 'wouter';
@@ -166,13 +166,12 @@ function PendingBadge() {
 
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
-  const { signOut } = useClerk();
   const role = user?.publicMetadata?.role;
   const isAdmin = role === 'admin';
 
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
+      {/* Sidebar — desktop only */}
       <aside className="hidden md:flex w-56 flex-col border-r bg-sidebar p-3 gap-1 flex-shrink-0">
         <div className="flex items-center gap-2 px-2 py-3 mb-2">
           <img src={`${basePath}/logo.svg`} alt="RT" className="w-7 h-7" />
@@ -204,17 +203,37 @@ function AppLayout({ children }: { children: React.ReactNode }) {
           </>
         )}
 
+        {/* UserButton at the bottom of sidebar */}
         <div className="mt-auto pt-3 border-t">
-          <div className="px-3 py-2 text-xs text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</div>
-          <button
-            data-testid="button-keluar"
-            onClick={() => signOut()}
-            className="w-full text-left px-3 py-2 rounded-md text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
-          >
-            Keluar
-          </button>
+          <div className="flex items-center gap-2 px-2 py-1">
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: "w-8 h-8",
+                  userButtonPopoverCard: "shadow-lg",
+                },
+              }}
+            />
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-sidebar-foreground truncate">{user?.firstName || user?.fullName}</div>
+              <div className="text-xs text-muted-foreground truncate">{user?.primaryEmailAddress?.emailAddress}</div>
+            </div>
+          </div>
         </div>
       </aside>
+
+      {/* Mobile top header with UserButton at the right */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b flex items-center justify-between px-4 h-12">
+        <div className="flex items-center gap-2">
+          <img src={`${basePath}/logo.svg`} alt="RT" className="w-6 h-6" />
+          <span className="font-semibold text-sm">Manajemen RT</span>
+        </div>
+        <UserButton
+          appearance={{
+            elements: { avatarBox: "w-8 h-8" },
+          }}
+        />
+      </div>
 
       {/* Mobile Bottom Nav */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background border-t flex">
@@ -236,7 +255,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      <main className="flex-1 overflow-auto bg-background pb-20 md:pb-0">
+      <main className="flex-1 overflow-auto bg-background pb-20 md:pb-0 pt-12 md:pt-0">
         {children}
       </main>
     </div>
