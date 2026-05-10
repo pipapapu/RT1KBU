@@ -52,6 +52,8 @@ const clerkAppearance = {
     identityPreviewEditButton: "text-primary",
     formFieldSuccessText: "text-primary",
     alertText: "text-destructive",
+    userButtonPopoverActionButtonText: "!text-black",
+    userButtonPopoverSecondaryActionText: "!text-black",
   },
 };
 
