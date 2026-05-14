@@ -127,7 +127,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-2 px-2 py-3 mb-2">
           <img src={`${basePath}/logo.svg`} alt="RT" className="w-7 h-7" />
           <div>
-            <div className="font-bold text-sm text-sidebar-foreground">Manajemen RT</div>
+            <div className="font-bold text-sm text-sidebar-foreground">RT</div>
             <div className="text-xs text-muted-foreground capitalize">{isAdmin ? "Admin" : "Warga"}</div>
           </div>
         </div>
