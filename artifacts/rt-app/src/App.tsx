@@ -118,7 +118,7 @@ function PendingBadge() {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const role = user?.publicMetadata?.role;
-  const isAdmin = true;
+  const isAdmin = role === 'admin';
 
   return (
     <div className="flex min-h-screen">
@@ -127,7 +127,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="flex items-center gap-2 px-2 py-3 mb-2">
           <img src={`${basePath}/logo.svg`} alt="RT" className="w-7 h-7" />
           <div>
-            <div className="font-bold text-sm text-sidebar-foreground">Manajemen RT</div>
+            <div className="font-bold text-sm text-sidebar-foreground">RT.01 RW.03 KBU</div>
             <div className="text-xs text-muted-foreground capitalize">{isAdmin ? "Admin" : "Warga"}</div>
           </div>
         </div>
