@@ -118,7 +118,7 @@ function PendingBadge() {
 function AppLayout({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
   const role = user?.publicMetadata?.role;
-  const isAdmin = true === 'admin';
+  const isAdmin = role === 'admin';
 
   return (
     <div className="flex min-h-screen">
